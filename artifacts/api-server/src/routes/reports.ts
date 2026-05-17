@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { db, payrollRunsTable, payrollEntriesTable, employeesTable, departmentsTable } from "@workspace/db";
+import { db, payrollRunsTable, payrollEntriesTable, employeesTable, departmentsTable, companySettingsTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import {
   GetMonthlyReportQueryParams,
   GetAnnualReportQueryParams,
+  GetP9QueryParams,
 } from "@workspace/api-zod";
 
 const router = Router();
@@ -156,6 +157,118 @@ router.get("/reports/annual", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Failed to get annual report");
     res.status(500).json({ error: "Failed to get annual report" });
+  }
+});
+
+// GET /reports/p9?employeeId=&year=
+router.get("/reports/p9", async (req, res) => {
+  try {
+    const params = GetP9QueryParams.parse({
+      employeeId: req.query.employeeId ? Number(req.query.employeeId) : undefined,
+      year: Number(req.query.year),
+    });
+
+    const [company] = await db.select().from(companySettingsTable).limit(1);
+
+    const conditions = [eq(payrollRunsTable.year, params.year)];
+    if (params.employeeId) {
+      conditions.push(eq(payrollEntriesTable.employeeId, params.employeeId));
+    }
+
+    const entries = await db
+      .select({
+        employeeId: payrollEntriesTable.employeeId,
+        employeeName: sql<string>`concat(${employeesTable.firstName}, ' ', ${employeesTable.lastName})`,
+        employeeNumber: employeesTable.employeeNumber,
+        kraPin: employeesTable.kraPin,
+        nationalId: employeesTable.nationalId,
+        jobTitle: employeesTable.jobTitle,
+        departmentName: departmentsTable.name,
+        month: payrollRunsTable.month,
+        grossSalary: payrollEntriesTable.grossSalary,
+        paye: payrollEntriesTable.paye,
+      })
+      .from(payrollEntriesTable)
+      .innerJoin(employeesTable, eq(payrollEntriesTable.employeeId, employeesTable.id))
+      .leftJoin(departmentsTable, eq(employeesTable.departmentId, departmentsTable.id))
+      .innerJoin(payrollRunsTable, eq(payrollEntriesTable.payrollRunId, payrollRunsTable.id))
+      .where(and(...conditions))
+      .orderBy(employeesTable.firstName, payrollRunsTable.month);
+
+    const grouped: Record<number, {
+      employeeId: number;
+      employeeName: string;
+      employeeNumber: string;
+      kraPin: string | null;
+      nationalId: string | null;
+      jobTitle: string | null;
+      departmentName: string | null;
+      monthly: { month: number; grossSalary: number; paye: number }[];
+    }> = {};
+
+    for (const e of entries) {
+      if (!grouped[e.employeeId]) {
+        grouped[e.employeeId] = {
+          employeeId: e.employeeId,
+          employeeName: e.employeeName,
+          employeeNumber: e.employeeNumber,
+          kraPin: e.kraPin,
+          nationalId: e.nationalId,
+          jobTitle: e.jobTitle,
+          departmentName: e.departmentName,
+          monthly: [],
+        };
+      }
+      grouped[e.employeeId].monthly.push({
+        month: e.month ?? 0,
+        grossSalary: Number(e.grossSalary),
+        paye: Number(e.paye ?? 0),
+      });
+    }
+
+    const employees = Object.values(grouped).map(emp => {
+      let cumulativeGross = 0;
+      let cumulativePaye = 0;
+      const monthlyEntries = emp.monthly
+        .sort((a, b) => a.month - b.month)
+        .map(m => {
+          cumulativeGross += m.grossSalary;
+          cumulativePaye += m.paye;
+          return {
+            month: m.month,
+            grossSalary: m.grossSalary,
+            paye: m.paye,
+            cumulativeGross,
+            cumulativePaye,
+          };
+        });
+
+      return {
+        employeeId: emp.employeeId,
+        employeeName: emp.employeeName,
+        employeeNumber: emp.employeeNumber,
+        kraPin: emp.kraPin,
+        nationalId: emp.nationalId,
+        jobTitle: emp.jobTitle,
+        departmentName: emp.departmentName,
+        year: params.year,
+        monthlyEntries,
+        totalGross: cumulativeGross,
+        totalPaye: cumulativePaye,
+      };
+    });
+
+    res.json({
+      company: {
+        companyName: company?.companyName ?? "",
+        companyAddress: company?.companyAddress ?? null,
+        kraPin: company?.kraPin ?? null,
+      },
+      employees,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get P9 report");
+    res.status(500).json({ error: "Failed to get P9 report" });
   }
 });
 

@@ -3,15 +3,16 @@ import { useGetMonthlyReport, getGetMonthlyReportQueryKey } from "@workspace/api
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FileText } from "lucide-react";
+import P9Form from "@/components/p9-form";
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 
-export default function ReportsPage() {
+function MonthlyReport() {
   const [month, setMonth] = useState(currentMonth);
   const [year, setYear] = useState(currentYear);
 
@@ -22,16 +23,6 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
-          <p className="text-muted-foreground">Detailed statutory and payroll reports.</p>
-        </div>
-        <Button variant="outline">
-          <Download className="w-4 h-4 mr-2" /> Export to CSV
-        </Button>
-      </div>
-
       <Card className="bg-slate-50 dark:bg-slate-900/50 border-none shadow-none">
         <CardContent className="p-4 flex gap-4">
           <div className="space-y-1">
@@ -134,6 +125,32 @@ export default function ReportsPage() {
           </Card>
         </div>
       )}
+    </div>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+        <p className="text-muted-foreground">Detailed statutory and payroll reports including KRA P9 forms.</p>
+      </div>
+
+      <Tabs defaultValue="monthly">
+        <TabsList className="mb-4">
+          <TabsTrigger value="monthly">Monthly Summary</TabsTrigger>
+          <TabsTrigger value="p9">P9 Forms</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="monthly">
+          <MonthlyReport />
+        </TabsContent>
+
+        <TabsContent value="p9">
+          <P9Form />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

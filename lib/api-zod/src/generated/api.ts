@@ -133,6 +133,54 @@ export const UpdateCompanySettingsBody = zod.object({
 })
 
 /**
+ * @summary P9 report query params
+ */
+export const GetP9QueryParams = zod.object({
+  "employeeId": zod.coerce.number().optional(),
+  "year": zod.coerce.number()
+})
+
+/**
+ * @summary P9 report item (monthly entry)
+ */
+export const P9MonthlyEntry = zod.object({
+  "month": zod.number(),
+  "grossSalary": zod.number(),
+  "paye": zod.number(),
+  "cumulativeGross": zod.number(),
+  "cumulativePaye": zod.number()
+})
+
+/**
+ * @summary P9 report for a single employee
+ */
+export const P9EmployeeReport = zod.object({
+  "employeeId": zod.number(),
+  "employeeName": zod.string(),
+  "employeeNumber": zod.string(),
+  "kraPin": zod.string().nullish(),
+  "nationalId": zod.string().nullish(),
+  "jobTitle": zod.string().nullish(),
+  "departmentName": zod.string().nullish(),
+  "year": zod.number(),
+  "monthlyEntries": zod.array(P9MonthlyEntry),
+  "totalGross": zod.number(),
+  "totalPaye": zod.number()
+})
+
+/**
+ * @summary P9 report response
+ */
+export const GetP9Response = zod.object({
+  "company": zod.object({
+    "companyName": zod.string(),
+    "companyAddress": zod.string().nullish(),
+    "kraPin": zod.string().nullish()
+  }),
+  "employees": zod.array(P9EmployeeReport)
+})
+
+/**
  * @summary Send payslip body
  */
 export const SendPayslipBody = zod.object({
