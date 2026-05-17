@@ -90,15 +90,13 @@ function SignUpPage() {
 
 function HomeRedirect() {
   const [, setLocation] = useLocation();
-  
+
   useEffect(() => {
+    setLocation("/dashboard");
   }, []);
 
   return (
     <>
-      <Show when="signed-in">
-        <DashboardPage />
-      </Show>
       <Show when="signed-out">
         <LandingPage />
       </Show>
@@ -168,7 +166,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/" component={HomeRedirect} />
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
-          <Route path="/:rest*">
+          <Route path="/*">
             <Show when="signed-in">
               <ProtectedApp />
             </Show>

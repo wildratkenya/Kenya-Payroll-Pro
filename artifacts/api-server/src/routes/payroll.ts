@@ -1,7 +1,35 @@
 import { Router } from "express";
-import { db, employeesTable, departmentsTable, payrollRunsTable, payrollEntriesTable } from "@workspace/db";
+import { db, employeesTable, departmentsTable, payrollRunsTable, payrollEntriesTable, taxRatesTable, taxBracketsTable } from "@workspace/db";
 import { eq, sql, and, desc, inArray } from "drizzle-orm";
-import { calculateAll } from "../lib/kenyaTax";
+import { calculateAll, getDefaultTaxSettings, type TaxSettings } from "../lib/kenyaTax";
+
+async function loadTaxSettings(): Promise<TaxSettings> {
+  const defaults = getDefaultTaxSettings();
+  try {
+    const rates = await db.select().from(taxRatesTable);
+    const rateMap: Record<string, number> = {};
+    for (const r of rates) {
+      rateMap[r.key] = Number(r.value);
+    }
+    const brackets = await db.select().from(taxBracketsTable).orderBy(taxBracketsTable.priority);
+    return {
+      nssfTier1Limit: rateMap.nssf_tier1_limit ?? defaults.nssfTier1Limit,
+      nssfTier2Limit: rateMap.nssf_tier2_limit ?? defaults.nssfTier2Limit,
+      nssfTier1Rate: rateMap.nssf_tier1_rate ?? defaults.nssfTier1Rate,
+      nssfTier2Rate: rateMap.nssf_tier2_rate ?? defaults.nssfTier2Rate,
+      shifRate: rateMap.shif_rate ?? defaults.shifRate,
+      shifMinimum: rateMap.shif_minimum ?? defaults.shifMinimum,
+      housingLevyRate: rateMap.housing_levy_rate ?? defaults.housingLevyRate,
+      personalRelief: rateMap.personal_relief ?? defaults.personalRelief,
+      insuranceReliefRate: rateMap.insurance_relief_rate ?? defaults.insuranceReliefRate,
+      payeBands: brackets.length > 0
+        ? brackets.map(b => ({ minAmount: Number(b.minAmount), maxAmount: Number(b.maxAmount), rate: Number(b.rate) }))
+        : defaults.payeBands,
+    };
+  } catch {
+    return defaults;
+  }
+}
 import {
   CreatePayrollRunBody,
   GetPayrollRunParams,
@@ -63,6 +91,9 @@ router.post("/payroll/runs", async (req, res) => {
 
     let totalGross = 0, totalPaye = 0, totalNssf = 0, totalShif = 0, totalHousingLevy = 0, totalNet = 0;
 
+    // Load dynamic tax settings
+    const settings = await loadTaxSettings();
+
     // Create the run
     const [run] = await db.insert(payrollRunsTable).values({
       month: body.month,
@@ -74,7 +105,7 @@ router.post("/payroll/runs", async (req, res) => {
     // Calculate and insert entries
     const entries = employees.map(emp => {
       const gross = Number(emp.grossSalary);
-      const tax = calculateAll(gross);
+      const tax = calculateAll(gross, settings);
 
       totalGross += gross;
       totalPaye += tax.netPaye;
@@ -214,7 +245,8 @@ router.get("/payroll/summary", async (req, res) => {
 router.post("/payroll/tax-preview", async (req, res) => {
   try {
     const body = PreviewTaxCalculationBody.parse(req.body);
-    const tax = calculateAll(body.grossSalary);
+    const settings = await loadTaxSettings();
+    const tax = calculateAll(body.grossSalary, settings);
     res.json({
       grossSalary: tax.grossSalary,
       nssfEmployee: tax.nssfEmployee,

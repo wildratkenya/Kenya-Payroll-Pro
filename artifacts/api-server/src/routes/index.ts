@@ -6,6 +6,7 @@ import payrollRouter from "./payroll";
 import leaveRouter from "./leave";
 import reportsRouter from "./reports";
 import disbursementsRouter from "./disbursements";
+import settingsRouter from "./settings";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(payrollRouter);
 router.use(leaveRouter);
 router.use(reportsRouter);
 router.use(disbursementsRouter);
+router.use(settingsRouter);
 
 export default router;

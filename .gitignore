@@ -47,3 +47,12 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+.env
+
+# Log files
+*.log
+api-stderr.log
+api-stdout.log
+
+# Temporary summary
+NEW_SUMMARY.md

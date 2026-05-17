@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navItems = [
@@ -103,11 +103,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="md:hidden flex items-center p-4 border-b border-border bg-card">
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="mr-2">
-              <Menu className="w-6 h-6" />
-            </Button>
-          </SheetTrigger>
+          <Button variant="ghost" size="icon" className="mr-2" onClick={() => setIsOpen(true)}>
+            <Menu className="w-6 h-6" />
+          </Button>
           <div className="flex items-center gap-2">
             <img src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`} alt="KenyaPay Logo" className="w-6 h-6" />
             <span className="font-bold">KenyaPay</span>

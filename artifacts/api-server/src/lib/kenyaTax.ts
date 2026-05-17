@@ -1,13 +1,3 @@
-/**
- * Kenya Tax Calculations (2024/2025 rates)
- * - PAYE: Progressive income tax
- * - NSSF: National Social Security Fund (Tier I + Tier II)
- * - SHIF: Social Health Insurance Fund (2.75% of gross)
- * - Housing Levy: 1.5% employee + 1.5% employer of gross
- * - Personal Relief: KSh 2,400/month
- * - Insurance Relief: 15% of SHIF contribution
- */
-
 export interface TaxCalculation {
   grossSalary: number;
   nssfEmployee: number;
@@ -24,88 +14,90 @@ export interface TaxCalculation {
   totalEmployerCost: number;
 }
 
-// NSSF Tier rates (2024)
-const NSSF_LOWER_LIMIT = 7000;
-const NSSF_UPPER_LIMIT = 36000;
-const NSSF_TIER1_RATE = 0.06; // 6% each
-const NSSF_TIER2_RATE = 0.06; // 6% each
+export interface TaxSettings {
+  nssfTier1Limit: number;
+  nssfTier2Limit: number;
+  nssfTier1Rate: number;
+  nssfTier2Rate: number;
+  shifRate: number;
+  shifMinimum: number;
+  housingLevyRate: number;
+  personalRelief: number;
+  insuranceReliefRate: number;
+  payeBands: { minAmount: number; maxAmount: number; rate: number }[];
+}
 
-// SHIF rate (2024)
-const SHIF_RATE = 0.0275; // 2.75%
-const SHIF_MINIMUM = 300;
+export function getDefaultTaxSettings(): TaxSettings {
+  return {
+    nssfTier1Limit: 7000,
+    nssfTier2Limit: 36000,
+    nssfTier1Rate: 6.0,
+    nssfTier2Rate: 6.0,
+    shifRate: 2.75,
+    shifMinimum: 300,
+    housingLevyRate: 1.5,
+    personalRelief: 2400,
+    insuranceReliefRate: 15.0,
+    payeBands: [
+      { minAmount: 0, maxAmount: 24000, rate: 0.10 },
+      { minAmount: 24000, maxAmount: 32333, rate: 0.25 },
+      { minAmount: 32333, maxAmount: 500000, rate: 0.30 },
+      { minAmount: 500000, maxAmount: 800000, rate: 0.325 },
+      { minAmount: 800000, maxAmount: 999999999, rate: 0.35 },
+    ],
+  };
+}
 
-// Housing Levy rate (2024)
-const HOUSING_LEVY_RATE = 0.015; // 1.5% each
+export function calculateNSSF(grossSalary: number, settings: TaxSettings): { employee: number; employer: number } {
+  const tier1Base = Math.min(grossSalary, settings.nssfTier1Limit);
+  const tier2Base = Math.max(0, Math.min(grossSalary, settings.nssfTier2Limit) - settings.nssfTier1Limit);
 
-// Personal Relief
-const PERSONAL_RELIEF = 2400;
-
-// PAYE bands (monthly, 2024)
-const PAYE_BANDS = [
-  { max: 24000, rate: 0.10 },
-  { max: 32333, rate: 0.25 },
-  { max: 500000, rate: 0.30 },
-  { max: 800000, rate: 0.325 },
-  { max: Infinity, rate: 0.35 },
-];
-
-export function calculateNSSF(grossSalary: number): { employee: number; employer: number } {
-  // Tier I: 6% of earnings up to lower earnings limit (KSh 7,000)
-  // Tier II: 6% of earnings from lower to upper earnings limit
-  const tier1Base = Math.min(grossSalary, NSSF_LOWER_LIMIT);
-  const tier2Base = Math.max(0, Math.min(grossSalary, NSSF_UPPER_LIMIT) - NSSF_LOWER_LIMIT);
-
-  const tier1Employee = tier1Base * NSSF_TIER1_RATE;
-  const tier2Employee = tier2Base * NSSF_TIER2_RATE;
+  const tier1Employee = tier1Base * (settings.nssfTier1Rate / 100);
+  const tier2Employee = tier2Base * (settings.nssfTier2Rate / 100);
   const employee = Math.round((tier1Employee + tier2Employee) * 100) / 100;
-
-  // Employer mirrors employee
   const employer = employee;
 
   return { employee, employer };
 }
 
-export function calculateSHIF(grossSalary: number): number {
-  const amount = grossSalary * SHIF_RATE;
-  return Math.round(Math.max(amount, SHIF_MINIMUM) * 100) / 100;
+export function calculateSHIF(grossSalary: number, settings: TaxSettings): number {
+  const amount = grossSalary * (settings.shifRate / 100);
+  return Math.round(Math.max(amount, settings.shifMinimum) * 100) / 100;
 }
 
-export function calculateHousingLevy(grossSalary: number): { employee: number; employer: number } {
-  const employee = Math.round(grossSalary * HOUSING_LEVY_RATE * 100) / 100;
+export function calculateHousingLevy(grossSalary: number, settings: TaxSettings): { employee: number; employer: number } {
+  const employee = Math.round(grossSalary * (settings.housingLevyRate / 100) * 100) / 100;
   const employer = employee;
   return { employee, employer };
 }
 
-export function calculatePAYE(taxableIncome: number): number {
+export function calculatePAYE(taxableIncome: number, bands: { minAmount: number; maxAmount: number; rate: number }[]): number {
   let tax = 0;
-  let previous = 0;
-
-  for (const band of PAYE_BANDS) {
-    if (taxableIncome <= previous) break;
-    const taxableInBand = Math.min(taxableIncome, band.max) - previous;
-    tax += taxableInBand * band.rate;
-    previous = band.max;
+  for (const band of bands) {
+    if (taxableIncome <= band.minAmount) break;
+    const taxableInBand = Math.min(taxableIncome, band.maxAmount) - band.minAmount;
+    if (taxableInBand > 0) {
+      tax += taxableInBand * band.rate;
+    }
   }
-
   return Math.round(Math.max(0, tax) * 100) / 100;
 }
 
-export function calculateInsuranceRelief(shif: number): number {
-  // 15% of SHIF contributions
-  return Math.round(shif * 0.15 * 100) / 100;
+export function calculateInsuranceRelief(shif: number, settings: TaxSettings): number {
+  return Math.round(shif * (settings.insuranceReliefRate / 100) * 100) / 100;
 }
 
-export function calculateAll(grossSalary: number): TaxCalculation {
-  const nssf = calculateNSSF(grossSalary);
-  const shif = calculateSHIF(grossSalary);
-  const housingLevy = calculateHousingLevy(grossSalary);
-  const insuranceRelief = calculateInsuranceRelief(shif);
+export function calculateAll(grossSalary: number, settings?: TaxSettings): TaxCalculation {
+  const s = settings ?? getDefaultTaxSettings();
+  const nssf = calculateNSSF(grossSalary, s);
+  const shif = calculateSHIF(grossSalary, s);
+  const housingLevy = calculateHousingLevy(grossSalary, s);
+  const insuranceRelief = calculateInsuranceRelief(shif, s);
 
-  // Taxable income = Gross - NSSF employee - Housing levy employee
   const taxableIncome = Math.max(0, grossSalary - nssf.employee - housingLevy.employee);
 
-  const grossPaye = calculatePAYE(taxableIncome);
-  const netPaye = Math.max(0, grossPaye - PERSONAL_RELIEF - insuranceRelief);
+  const grossPaye = calculatePAYE(taxableIncome, s.payeBands);
+  const netPaye = Math.max(0, grossPaye - s.personalRelief - insuranceRelief);
 
   const netPay = Math.round(
     (grossSalary - nssf.employee - shif - housingLevy.employee - netPaye) * 100
@@ -124,7 +116,7 @@ export function calculateAll(grossSalary: number): TaxCalculation {
     housingLevyEmployer: housingLevy.employer,
     taxableIncome,
     grossPaye,
-    personalRelief: PERSONAL_RELIEF,
+    personalRelief: s.personalRelief,
     insuranceRelief,
     netPaye,
     netPay,
