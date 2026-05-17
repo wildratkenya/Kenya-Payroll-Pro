@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Save } from "lucide-react";
+import { Plus, Save, Building2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,6 +23,17 @@ interface TaxBracket {
   maxAmount: number;
   rate: number;
   priority: number;
+}
+
+interface CompanySettings {
+  id: number;
+  companyName: string;
+  companyAddress: string | null;
+  companyPhone: string | null;
+  companyEmail: string | null;
+  companyLogoUrl: string | null;
+  kraPin: string | null;
+  payrollFooter: string | null;
 }
 
 function TaxSettings() {
@@ -201,6 +212,99 @@ function TaxSettings() {
   );
 }
 
+function CompanyBranding() {
+  const { toast } = useToast();
+  const [settings, setSettings] = useState<CompanySettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<Partial<CompanySettings>>({});
+
+  useEffect(() => {
+    fetch("/api/settings/company")
+      .then(r => r.json())
+      .then(data => {
+        setSettings(data);
+        setForm(data);
+        setLoading(false);
+      });
+  }, []);
+
+  function handleChange(field: keyof CompanySettings, value: string) {
+    setForm(prev => ({ ...prev, [field]: value }));
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/settings/company", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSettings(data);
+        toast({ title: "Company settings saved" });
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to save", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to save company settings.", variant: "destructive" });
+    }
+    setSaving(false);
+  }
+
+  const hasChanges = JSON.stringify(settings) !== JSON.stringify(form);
+
+  if (loading) return <Skeleton className="h-64 w-full" />;
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Company Branding</CardTitle>
+          <CardDescription>Company name, address, and details used on payslips and emails.</CardDescription>
+        </div>
+        {hasChanges && (
+          <Button onClick={handleSave} disabled={saving}>
+            <Save className="w-4 h-4 mr-2" /> {saving ? "Saving..." : "Save"}
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Company Name</label>
+          <Input value={form.companyName || ""} onChange={e => handleChange("companyName", e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Company Email</label>
+          <Input type="email" value={form.companyEmail || ""} onChange={e => handleChange("companyEmail", e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Company Phone</label>
+          <Input value={form.companyPhone || ""} onChange={e => handleChange("companyPhone", e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Company KRA PIN</label>
+          <Input value={form.kraPin || ""} onChange={e => handleChange("kraPin", e.target.value)} />
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <label className="text-sm font-medium">Company Address</label>
+          <Input value={form.companyAddress || ""} onChange={e => handleChange("companyAddress", e.target.value)} />
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <label className="text-sm font-medium">Logo URL</label>
+          <Input placeholder="https://example.com/logo.png" value={form.companyLogoUrl || ""} onChange={e => handleChange("companyLogoUrl", e.target.value)} />
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <label className="text-sm font-medium">Payslip Footer Text</label>
+          <Input value={form.payrollFooter || ""} onChange={e => handleChange("payrollFooter", e.target.value)} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   const { data: departments, isLoading: deptsLoading } = useListDepartments({
     query: { queryKey: getListDepartmentsQueryKey() }
@@ -214,8 +318,10 @@ export default function SettingsPage() {
     <div className="space-y-8 max-w-5xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">System Settings</h1>
-        <p className="text-muted-foreground">Configure departments, leave policies, and tax rates.</p>
+        <p className="text-muted-foreground">Configure departments, leave policies, tax rates, and company branding.</p>
       </div>
+
+      <CompanyBranding />
 
       <div className="grid md:grid-cols-2 gap-8">
         <Card>

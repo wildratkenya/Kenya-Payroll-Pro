@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { db, taxRatesTable, taxBracketsTable } from "@workspace/db";
+import { db, taxRatesTable, taxBracketsTable, companySettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { CompanySettings, UpdateCompanySettingsBody } from "@workspace/api-zod";
 
 const router = Router();
 
@@ -58,6 +59,61 @@ router.put("/settings/tax-brackets/:id", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Failed to update tax bracket");
     res.status(500).json({ error: "Failed to update tax bracket" });
+  }
+});
+
+// GET /settings/company
+router.get("/settings/company", async (req, res) => {
+  try {
+    const [settings] = await db.select().from(companySettingsTable).limit(1);
+    if (!settings) {
+      return res.json({
+        id: 0,
+        companyName: "",
+        companyAddress: null,
+        companyPhone: null,
+        companyEmail: null,
+        companyLogoUrl: null,
+        kraPin: null,
+        payrollFooter: null,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    const { updatedAt, ...rest } = settings;
+    res.json(rest);
+  } catch (err) {
+    req.log.error({ err }, "Failed to get company settings");
+    res.status(500).json({ error: "Failed to get company settings" });
+  }
+});
+
+// PUT /settings/company
+router.put("/settings/company", async (req, res) => {
+  try {
+    const body = UpdateCompanySettingsBody.parse(req.body);
+    const [existing] = await db.select({ id: companySettingsTable.id }).from(companySettingsTable).limit(1);
+
+    let settings;
+    if (existing) {
+      [settings] = await db.update(companySettingsTable).set(body).where(eq(companySettingsTable.id, existing.id)).returning();
+    } else {
+      [settings] = await db.insert(companySettingsTable).values({
+        companyName: body.companyName ?? "",
+        companyAddress: body.companyAddress,
+        companyPhone: body.companyPhone,
+        companyEmail: body.companyEmail,
+        companyLogoUrl: body.companyLogoUrl,
+        kraPin: body.kraPin,
+        payrollFooter: body.payrollFooter,
+      }).returning();
+    }
+
+    if (!settings) return res.status(500).json({ error: "Failed to save company settings" });
+    const { updatedAt, ...rest } = settings;
+    res.json(rest);
+  } catch (err) {
+    req.log.error({ err }, "Failed to update company settings");
+    res.status(500).json({ error: "Failed to update company settings" });
   }
 });
 

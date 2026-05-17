@@ -44,7 +44,19 @@ export const ListEmployeesResponseItem = zod.object({
   "bankBranch": zod.string().nullish(),
   "kraPin": zod.string().nullish(),
   "nssfNumber": zod.string().nullish(),
-  "shifNumber": zod.string().nullish(),
+  "nationalId": zod.string().nullish(),
+  "dateOfBirth": zod.string().nullish(),
+  "gender": zod.string().nullish(),
+  "maritalStatus": zod.string().nullish(),
+  "dependents": zod.number().nullish(),
+  "postalAddress": zod.string().nullish(),
+  "nextOfKinName": zod.string().nullish(),
+  "nextOfKinPhone": zod.string().nullish(),
+  "nextOfKinRelationship": zod.string().nullish(),
+  "photoUrl": zod.string().nullish(),
+  "probationEndDate": zod.string().nullish(),
+  "contractEndDate": zod.string().nullish(),
+  "isDisabled": zod.boolean().nullish(),
   "status": zod.enum(['active', 'terminated']),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
@@ -75,9 +87,70 @@ export const CreateEmployeeBody = zod.object({
   "kraPin": zod.string().optional(),
   "nssfNumber": zod.string().optional(),
   "shifNumber": zod.string().optional(),
+  "nationalId": zod.string().optional(),
+  "dateOfBirth": zod.string().optional(),
+  "gender": zod.enum(['male', 'female', 'other']).optional(),
+  "maritalStatus": zod.enum(['single', 'married', 'divorced', 'widowed']).optional(),
+  "dependents": zod.number().optional(),
+  "postalAddress": zod.string().optional(),
+  "nextOfKinName": zod.string().optional(),
+  "nextOfKinPhone": zod.string().optional(),
+  "nextOfKinRelationship": zod.string().optional(),
+  "photoUrl": zod.string().optional(),
+  "probationEndDate": zod.string().optional(),
+  "contractEndDate": zod.string().optional(),
+  "isDisabled": zod.boolean().optional(),
   "hireDate": zod.string(),
   "role": zod.enum(['admin', 'hr', 'employee']).optional()
 })
+
+/**
+ * @summary Company settings
+ */
+export const CompanySettings = zod.object({
+  "id": zod.number(),
+  "companyName": zod.string(),
+  "companyAddress": zod.string().nullish(),
+  "companyPhone": zod.string().nullish(),
+  "companyEmail": zod.string().nullish(),
+  "companyLogoUrl": zod.string().nullish(),
+  "kraPin": zod.string().nullish(),
+  "payrollFooter": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+/**
+ * @summary Update company settings body
+ */
+export const UpdateCompanySettingsBody = zod.object({
+  "companyName": zod.string().optional(),
+  "companyAddress": zod.string().nullish(),
+  "companyPhone": zod.string().nullish(),
+  "companyEmail": zod.string().nullish(),
+  "companyLogoUrl": zod.string().nullish(),
+  "kraPin": zod.string().nullish(),
+  "payrollFooter": zod.string().nullish()
+})
+
+/**
+ * @summary Send payslip body
+ */
+export const SendPayslipBody = zod.object({
+  "payrollRunId": zod.number(),
+  "employeeIds": zod.array(zod.number()).optional(),
+  "emailOverride": zod.string().optional()
+})
+
+/**
+ * @summary Send payslip response
+ */
+export const SendPayslipResponse = zod.object({
+  "message": zod.string(),
+  "sent": zod.number(),
+  "failed": zod.number(),
+  "errors": zod.array(zod.string()).optional()
+})
+
 
 
 /**
@@ -107,6 +180,19 @@ export const GetEmployeeResponse = zod.object({
   "kraPin": zod.string().nullish(),
   "nssfNumber": zod.string().nullish(),
   "shifNumber": zod.string().nullish(),
+  "nationalId": zod.string().nullish(),
+  "dateOfBirth": zod.string().nullish(),
+  "gender": zod.string().nullish(),
+  "maritalStatus": zod.string().nullish(),
+  "dependents": zod.number().nullish(),
+  "postalAddress": zod.string().nullish(),
+  "nextOfKinName": zod.string().nullish(),
+  "nextOfKinPhone": zod.string().nullish(),
+  "nextOfKinRelationship": zod.string().nullish(),
+  "photoUrl": zod.string().nullish(),
+  "probationEndDate": zod.string().nullish(),
+  "contractEndDate": zod.string().nullish(),
+  "isDisabled": zod.boolean().nullish(),
   "status": zod.enum(['active', 'terminated']),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
@@ -140,6 +226,19 @@ export const UpdateEmployeeBody = zod.object({
   "kraPin": zod.string().optional(),
   "nssfNumber": zod.string().optional(),
   "shifNumber": zod.string().optional(),
+  "nationalId": zod.string().optional(),
+  "dateOfBirth": zod.string().optional(),
+  "gender": zod.enum(['male', 'female', 'other']).optional(),
+  "maritalStatus": zod.enum(['single', 'married', 'divorced', 'widowed']).optional(),
+  "dependents": zod.number().optional(),
+  "postalAddress": zod.string().optional(),
+  "nextOfKinName": zod.string().optional(),
+  "nextOfKinPhone": zod.string().optional(),
+  "nextOfKinRelationship": zod.string().optional(),
+  "photoUrl": zod.string().optional(),
+  "probationEndDate": zod.string().optional(),
+  "contractEndDate": zod.string().optional(),
+  "isDisabled": zod.boolean().optional(),
   "status": zod.enum(['active', 'terminated']).optional(),
   "role": zod.enum(['admin', 'hr', 'employee']).optional(),
   "terminationDate": zod.string().nullish()
@@ -165,6 +264,19 @@ export const UpdateEmployeeResponse = zod.object({
   "kraPin": zod.string().nullish(),
   "nssfNumber": zod.string().nullish(),
   "shifNumber": zod.string().nullish(),
+  "nationalId": zod.string().nullish(),
+  "dateOfBirth": zod.string().nullish(),
+  "gender": zod.string().nullish(),
+  "maritalStatus": zod.string().nullish(),
+  "dependents": zod.number().nullish(),
+  "postalAddress": zod.string().nullish(),
+  "nextOfKinName": zod.string().nullish(),
+  "nextOfKinPhone": zod.string().nullish(),
+  "nextOfKinRelationship": zod.string().nullish(),
+  "photoUrl": zod.string().nullish(),
+  "probationEndDate": zod.string().nullish(),
+  "contractEndDate": zod.string().nullish(),
+  "isDisabled": zod.boolean().nullish(),
   "status": zod.enum(['active', 'terminated']),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),
@@ -734,6 +846,19 @@ export const GetMeResponse = zod.object({
   "kraPin": zod.string().nullish(),
   "nssfNumber": zod.string().nullish(),
   "shifNumber": zod.string().nullish(),
+  "nationalId": zod.string().nullish(),
+  "dateOfBirth": zod.string().nullish(),
+  "gender": zod.string().nullish(),
+  "maritalStatus": zod.string().nullish(),
+  "dependents": zod.number().nullish(),
+  "postalAddress": zod.string().nullish(),
+  "nextOfKinName": zod.string().nullish(),
+  "nextOfKinPhone": zod.string().nullish(),
+  "nextOfKinRelationship": zod.string().nullish(),
+  "photoUrl": zod.string().nullish(),
+  "probationEndDate": zod.string().nullish(),
+  "contractEndDate": zod.string().nullish(),
+  "isDisabled": zod.boolean().nullish(),
   "status": zod.enum(['active', 'terminated']),
   "hireDate": zod.string(),
   "terminationDate": zod.string().nullish(),

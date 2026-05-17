@@ -63,6 +63,19 @@ router.get("/employees", async (req, res) => {
         kraPin: employeesTable.kraPin,
         nssfNumber: employeesTable.nssfNumber,
         shifNumber: employeesTable.shifNumber,
+        nationalId: employeesTable.nationalId,
+        dateOfBirth: employeesTable.dateOfBirth,
+        gender: employeesTable.gender,
+        maritalStatus: employeesTable.maritalStatus,
+        dependents: employeesTable.dependents,
+        postalAddress: employeesTable.postalAddress,
+        nextOfKinName: employeesTable.nextOfKinName,
+        nextOfKinPhone: employeesTable.nextOfKinPhone,
+        nextOfKinRelationship: employeesTable.nextOfKinRelationship,
+        photoUrl: employeesTable.photoUrl,
+        probationEndDate: employeesTable.probationEndDate,
+        contractEndDate: employeesTable.contractEndDate,
+        isDisabled: employeesTable.isDisabled,
         status: employeesTable.status,
         role: employeesTable.role,
         hireDate: employeesTable.hireDate,
@@ -75,7 +88,7 @@ router.get("/employees", async (req, res) => {
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(employeesTable.firstName);
 
-    res.json(employees.map(e => ({ ...e, grossSalary: Number(e.grossSalary) })));
+    res.json(employees.map(e => ({ ...e, grossSalary: Number(e.grossSalary), dependents: e.dependents ?? undefined })));
   } catch (err) {
     req.log.error({ err }, "Failed to list employees");
     res.status(500).json({ error: "Failed to list employees" });
@@ -130,6 +143,19 @@ router.get("/employees/:id", async (req, res) => {
         kraPin: employeesTable.kraPin,
         nssfNumber: employeesTable.nssfNumber,
         shifNumber: employeesTable.shifNumber,
+        nationalId: employeesTable.nationalId,
+        dateOfBirth: employeesTable.dateOfBirth,
+        gender: employeesTable.gender,
+        maritalStatus: employeesTable.maritalStatus,
+        dependents: employeesTable.dependents,
+        postalAddress: employeesTable.postalAddress,
+        nextOfKinName: employeesTable.nextOfKinName,
+        nextOfKinPhone: employeesTable.nextOfKinPhone,
+        nextOfKinRelationship: employeesTable.nextOfKinRelationship,
+        photoUrl: employeesTable.photoUrl,
+        probationEndDate: employeesTable.probationEndDate,
+        contractEndDate: employeesTable.contractEndDate,
+        isDisabled: employeesTable.isDisabled,
         status: employeesTable.status,
         role: employeesTable.role,
         hireDate: employeesTable.hireDate,
@@ -245,6 +271,116 @@ router.get("/employees/:id/payslips", async (req, res) => {
   }
 });
 
+// POST /employees/send-payslip
+router.post("/employees/send-payslip", async (req, res) => {
+  try {
+    const { SendPayslipBody } = await import("@workspace/api-zod");
+    const body = SendPayslipBody.parse(req.body);
+
+    const { payrollEntriesTable, payrollRunsTable } = await import("@workspace/db");
+
+    const entries = await db
+      .select({
+        id: payrollEntriesTable.id,
+        grossSalary: payrollEntriesTable.grossSalary,
+        basicSalary: payrollEntriesTable.basicSalary,
+        paye: payrollEntriesTable.paye,
+        nssfEmployee: payrollEntriesTable.nssfEmployee,
+        nssfEmployer: payrollEntriesTable.nssfEmployer,
+        shif: payrollEntriesTable.shif,
+        housingLevyEmployee: payrollEntriesTable.housingLevyEmployee,
+        housingLevyEmployer: payrollEntriesTable.housingLevyEmployer,
+        personalRelief: payrollEntriesTable.personalRelief,
+        insuranceRelief: payrollEntriesTable.insuranceRelief,
+        netPay: payrollEntriesTable.netPay,
+        employeeId: payrollEntriesTable.employeeId,
+        month: payrollRunsTable.month,
+        year: payrollRunsTable.year,
+      })
+      .from(payrollEntriesTable)
+      .innerJoin(payrollRunsTable, eq(payrollEntriesTable.payrollRunId, payrollRunsTable.id))
+      .where(eq(payrollEntriesTable.payrollRunId, body.payrollRunId));
+
+    let filteredEntries = entries;
+    if (body.employeeIds && body.employeeIds.length > 0) {
+      filteredEntries = entries.filter(e => body.employeeIds!.includes(e.employeeId));
+    }
+
+    if (filteredEntries.length === 0) {
+      return res.status(404).json({ error: "No payroll entries found" });
+    }
+
+    const employeeIds = filteredEntries.map(e => e.employeeId);
+    const employees = await db
+      .select({
+        id: employeesTable.id,
+        firstName: employeesTable.firstName,
+        lastName: employeesTable.lastName,
+        email: employeesTable.email,
+        employeeNumber: employeesTable.employeeNumber,
+      })
+      .from(employeesTable)
+      .where(sql`${employeesTable.id} = ANY(${employeeIds})`);
+
+    const empMap = new Map(employees.map(e => [e.id, e]));
+
+    const [companyRow] = await db.select().from((await import("@workspace/db")).companySettingsTable).limit(1);
+
+    const { sendPayslipEmail, buildPayslipHtml } = await import("./lib/mail");
+
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+    let sent = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const entry of filteredEntries) {
+      const emp = empMap.get(entry.employeeId);
+      if (!emp) { failed++; continue; }
+
+      const to = body.emailOverride || emp.email;
+      if (!to) { failed++; errors.push(`No email for ${emp.firstName} ${emp.lastName}`); continue; }
+
+      try {
+        const html = buildPayslipHtml({
+          employeeName: `${emp.firstName} ${emp.lastName}`,
+          employeeNumber: emp.employeeNumber,
+          month: months[(entry.month ?? 1) - 1] || "Unknown",
+          year: entry.year ?? 0,
+          grossSalary: Number(entry.grossSalary),
+          basicSalary: Number(entry.basicSalary ?? entry.grossSalary),
+          paye: Number(entry.paye ?? 0),
+          nssfEmployee: Number(entry.nssfEmployee ?? 0),
+          nssfEmployer: Number(entry.nssfEmployer ?? 0),
+          shif: Number(entry.shif ?? 0),
+          housingLevyEmployee: Number(entry.housingLevyEmployee ?? 0),
+          housingLevyEmployer: Number(entry.housingLevyEmployer ?? 0),
+          personalRelief: Number(entry.personalRelief ?? 0),
+          netPay: Number(entry.netPay),
+          companyName: companyRow?.companyName ?? undefined,
+          companyAddress: companyRow?.companyAddress ?? undefined,
+          kraPin: companyRow?.kraPin ?? undefined,
+        });
+
+        await sendPayslipEmail({
+          to,
+          subject: `Payslip for ${months[(entry.month ?? 1) - 1]} ${entry.year}`,
+          html,
+        });
+        sent++;
+      } catch (e) {
+        failed++;
+        errors.push(`Failed to send to ${emp.email}: ${e instanceof Error ? e.message : "Unknown error"}`);
+      }
+    }
+
+    res.json({ message: "Payslips processed", sent, failed, errors: errors.length > 0 ? errors : undefined });
+  } catch (err) {
+    req.log.error({ err }, "Failed to send payslips");
+    res.status(500).json({ error: "Failed to send payslips" });
+  }
+});
+
 // GET /me
 router.get("/me", async (req, res) => {
   try {
@@ -273,6 +409,19 @@ router.get("/me", async (req, res) => {
         kraPin: employeesTable.kraPin,
         nssfNumber: employeesTable.nssfNumber,
         shifNumber: employeesTable.shifNumber,
+        nationalId: employeesTable.nationalId,
+        dateOfBirth: employeesTable.dateOfBirth,
+        gender: employeesTable.gender,
+        maritalStatus: employeesTable.maritalStatus,
+        dependents: employeesTable.dependents,
+        postalAddress: employeesTable.postalAddress,
+        nextOfKinName: employeesTable.nextOfKinName,
+        nextOfKinPhone: employeesTable.nextOfKinPhone,
+        nextOfKinRelationship: employeesTable.nextOfKinRelationship,
+        photoUrl: employeesTable.photoUrl,
+        probationEndDate: employeesTable.probationEndDate,
+        contractEndDate: employeesTable.contractEndDate,
+        isDisabled: employeesTable.isDisabled,
         status: employeesTable.status,
         role: employeesTable.role,
         hireDate: employeesTable.hireDate,

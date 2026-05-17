@@ -4,3 +4,4 @@ export * from "./payroll";
 export * from "./leave";
 export * from "./disbursements";
 export * from "./tax_rates";
+export * from "./company";

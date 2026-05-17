@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, numeric, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { departmentsTable } from "./departments";
@@ -22,6 +22,19 @@ export const employeesTable = pgTable("employees", {
   kraPin: text("kra_pin"),
   nssfNumber: text("nssf_number"),
   shifNumber: text("shif_number"),
+  nationalId: text("national_id"),
+  dateOfBirth: text("date_of_birth"),
+  gender: text("gender"),
+  maritalStatus: text("marital_status"),
+  dependents: integer("dependents").default(0),
+  postalAddress: text("postal_address"),
+  nextOfKinName: text("next_of_kin_name"),
+  nextOfKinPhone: text("next_of_kin_phone"),
+  nextOfKinRelationship: text("next_of_kin_relationship"),
+  photoUrl: text("photo_url"),
+  probationEndDate: text("probation_end_date"),
+  contractEndDate: text("contract_end_date"),
+  isDisabled: boolean("is_disabled").default(false),
   status: text("status").notNull().default("active"),
   role: text("role").notNull().default("employee"),
   hireDate: text("hire_date").notNull(),
