@@ -50,9 +50,12 @@ export default function P9Form() {
   const [year, setYear] = useState(currentYear);
   const [data, setData] = useState<P9Data | null>(null);
   const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<P9Employee[]>([]);
 
   const { data: employees = [] } = useListEmployees();
+
+  useEffect(() => { loadP9(); }, []);
 
   useEffect(() => {
     if (!data) return;
@@ -65,6 +68,7 @@ export default function P9Form() {
 
   async function loadP9() {
     setLoading(true);
+    setHasLoaded(true);
     try {
       const params = new URLSearchParams({ year: year.toString() });
       if (employeeId && employeeId !== "_all") params.set("employeeId", employeeId);
@@ -179,7 +183,9 @@ export default function P9Form() {
       ) : !data || filteredEmployees.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12 text-muted-foreground">
-            Select a year and click Generate to view P9 forms.
+            {hasLoaded
+              ? "No payroll data found for the selected year. Ensure payroll runs have been processed."
+              : "Select a year and click Generate to view P9 forms."}
           </CardContent>
         </Card>
       ) : (
