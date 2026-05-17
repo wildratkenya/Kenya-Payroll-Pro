@@ -46,7 +46,7 @@ interface P9Data {
 }
 
 export default function P9Form() {
-  const [employeeId, setEmployeeId] = useState<string>("");
+  const [employeeId, setEmployeeId] = useState<string>("_all");
   const [year, setYear] = useState(currentYear);
   const [data, setData] = useState<P9Data | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,7 +56,7 @@ export default function P9Form() {
 
   useEffect(() => {
     if (!data) return;
-    if (employeeId) {
+    if (employeeId && employeeId !== "_all") {
       setSelectedEmployees(data.employees.filter(e => e.employeeId === parseInt(employeeId)));
     } else {
       setSelectedEmployees(data.employees);
@@ -67,7 +67,7 @@ export default function P9Form() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ year: year.toString() });
-      if (employeeId) params.set("employeeId", employeeId);
+      if (employeeId && employeeId !== "_all") params.set("employeeId", employeeId);
       const res = await fetch(`/api/reports/p9?${params}`);
       const json = await res.json();
       setData(json);
@@ -111,7 +111,7 @@ export default function P9Form() {
     URL.revokeObjectURL(url);
   }
 
-  const filteredEmployees = employeeId
+  const filteredEmployees = employeeId && employeeId !== "_all"
     ? selectedEmployees
     : (data?.employees || []);
 
@@ -141,7 +141,7 @@ export default function P9Form() {
                 <SelectValue placeholder="All Employees" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Employees</SelectItem>
+                <SelectItem value="_all">All Employees</SelectItem>
                 {employees.map(emp => (
                   <SelectItem key={emp.id} value={emp.id.toString()}>
                     {emp.firstName} {emp.lastName}
